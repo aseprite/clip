@@ -113,7 +113,9 @@ bool BitmapInfo::load_from(BITMAPINFO* bi) {
         alpha_mask = 0xff000000;
         break;
       case 24:
-      case 8: // We return 8bpp images as 24bpp
+      case 8: // We return 8bpp, 4bpp and 1bpp images as 24bpp
+      case 4:
+      case 1:
         red_mask   = 0xff0000;
         green_mask = 0xff00;
         blue_mask  = 0xff;
@@ -268,6 +270,70 @@ bool BitmapInfo::to_image(image& output_img) const {
       }
       break;
     }
+
+    case 4: {
+      assert(bi);
+
+      const int colors = 16;
+      std::vector<uint32_t> palette(colors);
+      for (int c=0; c<colors; ++c) {
+        palette[c] =
+          (bi->bmiColors[c].rgbRed   << spec.red_shift) |
+          (bi->bmiColors[c].rgbGreen << spec.green_shift) |
+          (bi->bmiColors[c].rgbBlue  << spec.blue_shift);
+      }
+
+      const uint8_t* src = (((uint8_t*)bi) + bi->bmiHeader.biSize + sizeof(RGBQUAD)*colors);
+      const uint8_t* srcY = src;
+
+      for (long y = 0; y < spec.height; ++y, srcY += stride, src = srcY) {
+        char* dst = img.data() + (topY + direction * y) * spec.bytes_per_row;
+
+        for (unsigned long x=0; x<spec.width; ++x, dst+=3) {
+          int idx = src[x / 2];
+          if (x & 1)
+            idx &= 0x0f;
+          else
+            idx >>= 4;
+
+          if (idx < 0)
+            idx = 0;
+          else if (idx >= colors)
+            idx = colors-1;
+
+          *((uint32_t*)dst) = palette[idx];
+        }
+      }
+      break;
+    }
+
+    case 1: {
+      assert(bi);
+
+      const int colors = 2;
+      std::vector<uint32_t> palette(colors);
+      for (int c=0; c<colors; ++c) {
+        palette[c] =
+          (bi->bmiColors[c].rgbRed   << spec.red_shift) |
+          (bi->bmiColors[c].rgbGreen << spec.green_shift) |
+          (bi->bmiColors[c].rgbBlue  << spec.blue_shift);
+      }
+
+      const uint8_t* src = (((uint8_t*)bi) + bi->bmiHeader.biSize + sizeof(RGBQUAD)*colors);
+      const uint8_t* srcY = src;
+
+      for (long y = 0; y < spec.height; ++y, srcY += stride, src = srcY) {
+        char* dst = img.data() + (topY + direction * y) * spec.bytes_per_row;
+
+        for (unsigned long x=0; x<spec.width; ++x, dst+=3) {
+          const int idx = (src[x / 8] & (128 >> (x & 7)) ? 1 : 0);
+
+          *((uint32_t*)dst) = palette[idx];
+        }
+      }
+      break;
+    }
+
   }
 
   std::swap(output_img, img);
