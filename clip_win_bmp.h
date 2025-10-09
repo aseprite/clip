@@ -52,7 +52,7 @@ struct BitmapInfo {
   bool to_image(image& output_img) const;
 
 private:
-  void calc_stride(uint32_t imageSize);
+  void calc_stride();
   bool load_from(BITMAPV5HEADER* b5);
   bool load_from(BITMAPINFO* bi);
 };

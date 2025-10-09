@@ -42,17 +42,18 @@ BitmapInfo::BitmapInfo() {
   }
 }
 
-void BitmapInfo::calc_stride(uint32_t imageSize)
-{
-  // By default the minimum stride (bytes per row) should be always
-  // the image width in bytes, rounded up to the nearest DWORD. But
-  // some programs (e.g. Steam screenshots) create an unaligned stride
-  // (this is even incompatible with MSPaint, which cannot read the
-  // clipboard bitmap). Anyway, we can use bV5SizeImage/biSizeImage
-  // fields to determine if each stride is rounded to DWORDs or not.
+void BitmapInfo::calc_stride() {
+  // From:
+  //
+  //   https://learn.microsoft.com/en-us/windows/win32/api/wingdi/ns-wingdi-bitmapinfoheader#calculating-surface-stride
+  //
+  // The stride (bytes per row) must be always the image width in
+  // bytes rounded up to the nearest DWORD.
+  //
+  // Some programs (e.g. Steam client, in its screenshots section)
+  // create an misaligned stride, this is just wrong. Not even MS
+  // Paint is able to paste these images.
   stride = GDI_WIDTHBYTES(width * bit_count);
-  if (imageSize != stride * height)
-    stride = (width * bit_count) / 8;
 }
 
 bool BitmapInfo::load_from(BITMAPV5HEADER* b5) {
@@ -66,7 +67,7 @@ bool BitmapInfo::load_from(BITMAPV5HEADER* b5) {
     height      = b5->bV5Height;
     bit_count   = b5->bV5BitCount;
     compression = b5->bV5Compression;
-    calc_stride(b5->bV5SizeImage);
+    calc_stride();
 
     if (compression == BI_BITFIELDS) {
       red_mask    = b5->bV5RedMask;
@@ -93,7 +94,7 @@ bool BitmapInfo::load_from(BITMAPINFO* bi) {
   height      = bi->bmiHeader.biHeight;
   bit_count   = bi->bmiHeader.biBitCount;
   compression = bi->bmiHeader.biCompression;
-  calc_stride(bi->bmiHeader.biSizeImage);
+  calc_stride();
 
   if (compression == BI_BITFIELDS) {
     red_mask   = *((uint32_t*)&bi->bmiColors[0]);
