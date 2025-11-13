@@ -8,6 +8,7 @@
 
 #include "clip.h"
 #include "clip_common.h"
+#include "clip_win_hglobal.h"
 
 #include <algorithm>
 #include <vector>
@@ -354,9 +355,7 @@ HGLOBAL create_dibv5(const image& image) {
   out_spec.bytes_per_row += padding;
 
   // Create the BITMAPV5HEADER structure
-  HGLOBAL hmem =
-    GlobalAlloc(
-      GHND,
+  Hglobal hmem(
       sizeof(BITMAPV5HEADER)
       + palette_colors*sizeof(RGBQUAD)
       + out_spec.bytes_per_row*out_spec.height);
@@ -372,7 +371,11 @@ HGLOBAL create_dibv5(const image& image) {
   out_spec.blue_shift  = 0;
   out_spec.alpha_shift = 24;
 
-  BITMAPV5HEADER* bi = (BITMAPV5HEADER*)GlobalLock(hmem);
+  HglobalLock hlock(hmem);
+  if (!hlock)
+    return nullptr;
+
+  BITMAPV5HEADER* bi = hlock.data<BITMAPV5HEADER*>();
   bi->bV5Size = sizeof(BITMAPV5HEADER);
   bi->bV5Width = out_spec.width;
   bi->bV5Height = out_spec.height;
@@ -421,17 +424,13 @@ HGLOBAL create_dibv5(const image& image) {
       break;
     }
     default:
-      GlobalUnlock(hmem);
-      GlobalFree(hmem);
-
       error_handler e = get_error_handler();
       if (e)
         e(ErrorCode::ImageNotSupported);
       return nullptr;
   }
 
-  GlobalUnlock(hmem);
-  return hmem;
+  return hmem.release();
 }
 
 } // namespace win
