@@ -336,8 +336,10 @@ bool lock::impl::set_image(const image& image) {
     UINT png_format = RegisterClipboardFormatA("PNG");
     if (png_format) {
       Hglobal png_handle(win::write_png(image));
-      if (png_handle)
-        SetClipboardData(png_format, png_handle);
+      if (png_handle) {
+        if (SetClipboardData(png_format, png_handle))
+          png_handle.release();
+      }
     }
   }
 
@@ -345,7 +347,8 @@ bool lock::impl::set_image(const image& image) {
   if (!hmem)
     return false;
 
-  SetClipboardData(CF_DIBV5, hmem);
+  if (SetClipboardData(CF_DIBV5, hmem))
+    hmem.release();
   return true;
 }
 
