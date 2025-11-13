@@ -23,7 +23,9 @@ jobs:
       run: |
         if [[ "${{ runner.os }}" == "Windows" ]] ; then
           cmake . -G "NMake Makefiles" \
-                  -DCLIP_ENABLE_IMAGE=${{ matrix.enable_image }}
+                  -DCLIP_ENABLE_IMAGE=${{ matrix.enable_image }} \
+                  "-DCMAKE_CXX_FLAGS:STRING=-DWIN32 -D_WINDOWS -GR -EHsc -fsanitize=address" \
+                  "-DCMAKE_EXE_LINKER_FLAGS:STRING=-machine:x64 -fsanitize=address"
         else
           cmake . -G "Unix Makefiles" \
                   -DCLIP_ENABLE_IMAGE=${{ matrix.enable_image }}
